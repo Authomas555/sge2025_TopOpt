@@ -5,7 +5,7 @@
 
 
 ## 1) Contents
-This repository contains various implementations of topology optimization method to design a magnetic transformer using [NGSolve](https://ngsolve.org/) and [Python](https://www.python.org/). This repository contains several files including [Jupyter notebooks](https://jupyter.org/). The codes associated to our SGE 2025 article are listed in the folder `SGE_2025`. We hope to enrich this repo with new algorithms and method in the future.
+This repository contains various implementations of topology optimization method to design a magnetic transformer using [NGSolve](https://ngsolve.org/) and [Python](https://www.python.org/). This repository contains several files including [Jupyter notebooks](https://jupyter.org/). The codes associated to our SGE 2025 article are listed in the folder `SGE2025`. We hope to enrich this repo with new algorithms and method in the future.
 
 ## 2) Installation 
 
@@ -13,7 +13,7 @@ To run the codes, please install `NGSolve`, please follow the procedure :
 1. Create a new Python environnement (for instance using conda) : `conda create -n myEnvName python=3`
 2. Install the following packages `pip install jupyter numpy matplotlib ngsolve`
 3. Upgrade webgui widgets : `pip install --upgrade webgui_jupyter_widgets`
-3. You should now be able to run the content of the folder `SGE_2025`.
+3. You should now be able to run the content of the folder `SGE2025`.
 
 
 ## 3) License
