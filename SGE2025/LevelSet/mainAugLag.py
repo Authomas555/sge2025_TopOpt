@@ -187,7 +187,7 @@ N_max = 15      # Nombre d'itérations de l'algorithme d'optimisation
 volFracTarget = 0.1
 phi = GridFunction(ls0.space)
 phi.Set(ls0)
-input('Start')
+input('Start [press enter to continue]')
 Masslist = []
 LagrList = []
 objList = []
