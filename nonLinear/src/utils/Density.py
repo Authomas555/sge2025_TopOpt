@@ -11,7 +11,9 @@ interpolationLibrary = {}
 # - f(1) = 1
 # - f'(x) >= 0 on [0,1]
 # - give a default values for parameters (other than x)
-
+# - reference is optional but recommended
+# - alias is optional
+#
 # other interpolations that depend on the values to interpolate (not compatible) : 
 # - geometric interpolation (Dyck & Lowther 1996, Labbé 2010)
 # - sequence MIS (Sanogo & Messine, 2018)
@@ -73,7 +75,7 @@ for key in keys:
 
 ###############################################################################################################################
 
-def get_default_args(func):
+def get_default_args(func: callable) -> dict:
     """ Get default argument of a function """
     signature = inspect.signature(func)
     return {
@@ -91,7 +93,7 @@ class Interpolation:
     latex : str
     reference : str
 
-    def __init__(self, type, **kwargs):
+    def __init__(self, type : str, **kwargs):
         type = type.lower()
         if type not in interpolationLibrary:
             raise ValueError(f"Interpolation type '{type}' not recognized. Available : \n{'\n'.join(interpolationLibrary.keys())}.")
@@ -116,22 +118,28 @@ class Interpolation:
     def __call__(self, x):
         return self.function(x)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.latex + " | " + self.__str_parameters()
     
-    def __str_parameters(self):
+    def __str_parameters(self) -> str :
         return  ", ".join([f"{k}={v}" for k, v in self.parameters.items()])
 
-    def plot(self, num_points = 100, label = "default", param = "default"):
+    def plot(self, 
+             num_points : int = 100, 
+             label : str = "default", 
+             param : str = "default") -> None:
+        """ Plot the interpolation function """
         x = np.linspace(0, 1, num_points)
-        if label == "default": label = self.name
-        if param == "default": param = " | " + self.__str_parameters()
+        if label is None: label = ""
+        elif label == "default": label = self.name
+        if param is None: param = ""
+        elif param == "default": param = " | " + self.__str_parameters()
         plt.plot(x, self(x), label = label + param)
 
-        
+###############################################################################################################################
+# Tests
 
 if __name__ == "__main__" : # simple tests
     I = Interpolation("zhu", p = 3)
     I.plot()
-    print(I.latex)
-
+    print(I)

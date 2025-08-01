@@ -1,7 +1,14 @@
+import ngsolve
 from ngsolve import Mesh
 from netgen.geom2d import SplineGeometry, CSG2d, Rectangle
 
-def transformer(NCoils = 1, width = 0.6, height = 0.6, innerDiameterCoil = 4e-2, outerDiameterCoil = 6e-2, heightCoil = 4e-2, hmax = 1e-2):
+def transformer(NCoils :int = 1, 
+                width : float = 0.6, 
+                height : float= 0.6, 
+                innerDiameterCoil : float = 4e-2, 
+                outerDiameterCoil : float = 6e-2, 
+                heightCoil : float = 4e-2, 
+                hmax : float = 1e-2) -> ngsolve.Mesh :
     """
     Generate a finite element mesh for a 2D transformer cross-section using Netgen/NGSolve.
 
@@ -74,7 +81,12 @@ def transformer(NCoils = 1, width = 0.6, height = 0.6, innerDiameterCoil = 4e-2,
     return mesh
 
 
-def transformer_bit_array(width = 0.6, height = 0.6, innerDiameterCoil = 4e-2, outerDiameterCoil = 6e-2, heightCoil = 4e-2, hmax = 1e-2):
+def transformer_bit_array(width : float = 0.6, 
+                          height : float = 0.6, 
+                          innerDiameterCoil : float = 4e-2, 
+                          outerDiameterCoil : float = 6e-2, 
+                          heightCoil : float = 4e-2, 
+                          hmax : float = 1e-2) -> ngsolve.Mesh :
     """
     Create a 2D parametric mesh for a transformer design using a bit array layout.
 
