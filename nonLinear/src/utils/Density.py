@@ -25,7 +25,7 @@ interpolationLibrary["power"] = {"function" : lambda x, p = 1 : x ** p,
                                  "name" : "power law",
                                  "latex" : "x^p",
                                  "reference" : "Bendsøe (1989), Mlejnek (1992), Bendsøe and Sigmund (1999, 2003)",
-                                 "alias" : ["power law", "pow", "simp"]}
+                                 "alias" : ["power law", "powerlaw", "power_law", "pow", "simp"]}
 
 ##############################################################################################################################
 
@@ -46,10 +46,8 @@ interpolationLibrary["polynomial"] =  {"function" : lambda  x, p = 1, a = 3 : x/
                                  "name" : "rational function",
                                  "condition" : (lambda p : p>0, "p should be strictly positive"),
                                  "latex" : "\\frac{x}{a} + \\frac{a-1}{a} x^p" ,
-                                 "reference" : "Jihong Zhu (2008, PhD Thesis)"}
-# aliases
-interpolationLibrary["zhu"] = interpolationLibrary["polynomial"]
-interpolationLibrary["poly"] = interpolationLibrary["polynomial"]
+                                 "reference" : "Jihong Zhu (2008, PhD Thesis)",
+                                 "alias" : ["zhu", "poly", "jzhu"]}
 
 ##############################################################################################################################
 
@@ -58,10 +56,8 @@ interpolationLibrary["atan"] =  {"function" : lambda  x, p = 1e-6 : (1+atan(p*(2
                                  "name" : "rational function",
                                  "condition" : (lambda p : p>0, "p should be strictly positive"),
                                  "latex" : "\\frac{1+\\atan(p(2x-1))}{2\\atan(p)}",
-                                 "reference" : "Lukáš (2006, An Integration of Optimal Topology and Shape Design for Magnetostatics)"}
-# aliases
-interpolationLibrary["lukas"] = interpolationLibrary["atan"]
-interpolationLibrary["arctan"] = interpolationLibrary["atan"]
+                                 "reference" : "Lukáš (2006, An Integration of Optimal Topology and Shape Design for Magnetostatics)",
+                                 "alias" : ["lukas", "arctan"]}
 
 ##############################################################################################################################
 
@@ -96,7 +92,7 @@ class Interpolation:
     def __init__(self, type : str, **kwargs):
         type = type.lower()
         if type not in interpolationLibrary:
-            raise ValueError(f"Interpolation type '{type}' not recognized. Available : \n{'\n'.join(interpolationLibrary.keys())}.")
+            raise ValueError(f"Interpolation type '{type}' not recognized. Available : \n{'\n'.join(interpolationLibrary.keys())}")
         self.type = type
         # check condition on p
         if kwargs is not None:

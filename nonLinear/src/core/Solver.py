@@ -157,12 +157,12 @@ def solve(fes : ngs.FESpace,                                                    
                 if verbosity >= 2 : print(f"   it {counter_linesearch} | |residual|² = {res2_ls :.5e}| step = {step : .2e}")
 
                 if counter_linesearch >= maxit_linesearch:
-                    if verbosity >= 1 : print(f"!! FAILURE: maximal number of line search iterations reached !!")
+                    if verbosity >= 1 : print(f"❌ FAILURE: maximal number of line search iterations reached !!")
                     status = 3
                     break 
 
                 if step < minstep_linesearch:
-                    if verbosity >= 1 : print(f"!! FAILURE: minimal line search step size reached !!")
+                    if verbosity >= 1 : print(f"❌ FAILURE: minimal line search step reached !!")
                     status = 2
                     break 
             
@@ -176,7 +176,10 @@ def solve(fes : ngs.FESpace,                                                    
 
         if isnan(res2_state):
             status = 4
-            if verbosity >= 1 : print(f"!! FAILURE: NaN detected !!")
+            if verbosity >= 1 : 
+                print(f"❌ FAILURE: NaN detected ", end = "")
+                if linesearch : print("after line search ", end = "")
+            print("!!")
             break
 
         if status:
@@ -192,6 +195,7 @@ def solve(fes : ngs.FESpace,                                                    
 
 
         if residual_list[-1] / residual_list[-2] < rtol_res:
+            if verbosity >= 1 : print(f"Linear problem detected!")
             linear = True
             break
         
@@ -199,24 +203,43 @@ def solve(fes : ngs.FESpace,                                                    
             break
 
         if counter_newton >= maxit_newton: 
-            if verbosity >= 1 : print(f"!! FAILURE: maximum number of Newton iterations reached !!")
+            if verbosity >= 1 : print(f"❌ FAILURE: maximum number of Newton iterations reached !!")
             status = 1
             break
     
     # III) Export results
 
-    if verbosity >=2 and not status : print(f" SUCCESS: Newton has converged in {counter_newton} iterations.")  
+    if verbosity >=2 and not status : print(f" ✅ SUCCESS: Newton has converged in {counter_newton} iterations.")  
     if verbosity >=2 :  print(f" Total wall time: {(time() - tStart) :.2f} s.")
     results = {"solution" : state, 
                "status" : status, 
                "linear_detected" : linear,
                "iteration": counter_newton, 
-               "lastInverse" : Kinv, 
+               "last_inverse" : Kinv, 
                "residual" : residual_list,
                "decrement": decrement_list,
                "wall_time" : time() - tStart}
     if verbosity >=2 : print(f" --------------------- END NEWTON --------------------- ")  
     return results
+
+def solveAdjoint(state,
+                 lastInverse : ngs.Vector = None,
+                 rhs : callable = None,
+                 expression : callable = None,
+                 ) -> dict:
+    fes = state.space
+    v = fes.TestFunction()
+    if lastInverse is not None:
+        adjoint = ngs.GridFunction(fes)
+        lf = ngs.LinearForm(rhs(state, v)).Assemble()
+        if fes.is_complex: 
+            adjoint.vec.data = lastInverse.H * lf.vec
+        else :
+            adjoint.vec.data = lastInverse.T * lf.vec
+    elif expression is not None :
+        adjoint = solve(fes, expression)
+    return adjoint
+
 
 ###############################################################################################################################
 # Tests
