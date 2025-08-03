@@ -13,14 +13,15 @@ def solve(fes : ngs.FESpace,                                                    
           draw : bool = False,                                                      # draw intermediate solutions
           # Newton parameters
           maxit_newton : int = 50,             # maximum number of Newton outer iterations
-          tol : float = 1e-8,                  # (absolute) tolerance on Newton decrement : sqrt( < residual(uOld), du > )
-          rtol_res : float = 1e-10,            # relative tolerance on the residual between 2 iterations (to save 1 useless iteration in case of linear problem)
+          tol_dec : float = 1e-8,              # (absolute) tolerance on Newton decrement : sqrt( < residual(uOld), du > )
+          tol_res : float = 1e-8,             # (absolute) tolerance on residual 
+          rtol_res : float = 1e-8,            # relative tolerance on the residual between 2 iterations (to save 1 useless iteration in case of linear problem)
           # Line search parameters
           linesearch : bool = True,            # flag to enable line search (recommended)
           maxit_linesearch : int = 20,         # maximum iteration number within the line search
           minstep_linesearch : float = 1e-12,  # minimum step size allowed in the line search 
           armijo_linesearch : float = 0.1,     # Armijo coefficient in [0, 1) such that |residual(u-step*du)|² < residual²(u) - armijo_linesearch*step*(|residual(u)|²)'(du)
-          step_factor_linesearch : float = 0.3 # step size reduction factor in (0, 1) to reduce the step if too big 
+          step_factor_linesearch : float = 0.5 # step size reduction factor in (0, 1) to reduce the step if too big 
           ) -> dict:
     
     """
@@ -39,7 +40,7 @@ def solve(fes : ngs.FESpace,                                                    
         the bilinear form of the derivative. If None, symbolic differentiation is used.
 
     initial_guess : ngs.GridFunction or ngs.CoefficientFunction, optional
-        Initial solution guess. Default is 0.
+        Initial solution guess. Default is 0 everywhere.
 
     verbosity : int, optional
         Verbosity level (0 = silent, 3 = very detailed). Default is 1.
@@ -80,7 +81,7 @@ def solve(fes : ngs.FESpace,                                                    
         - "status" : integer code indicating termination reason (see below)
         - "linear_detected" : True if linear problem detected early
         - "iteration" : number of Newton iterations performed
-        - "lastInverse" : last tangent matrix decomposition (for reuse or debugging)
+        - "last_inverse" : last tangent matrix decomposition (for reuse or debugging)
         - "residual" : list of residual norms per iteration
         - "decrement" : list of Newton decrement values per iteration
         - "wall_time" : total computation time in seconds
@@ -91,14 +92,14 @@ def solve(fes : ngs.FESpace,                                                    
     1 : ❌ FAILURE — Maximum number of Newton iterations reached.
     2 : ❌ FAILURE — Line search failed: minimum step size reached.
     3 : ❌ FAILURE — Line search failed: max number of iterations reached.
-    4 : ❌ FAILURE — NaN encountered in the residual.
+    4 : ❌ FAILURE — NaN encountered in the residual (after line search if enabled).
     """
 
     # I) Initialization
 
     tStart = time()
     if verbosity >= 3 : print(f"-------------------- START NEWTON ---------------------")
-    if verbosity >= 3 : print(f"Initializing ... ", end = "")
+    if verbosity >= 3 : print(f"Initializing  ..... ", end = "")
     du, v = fes.TnT()
     res2 = lambda sol : (norm(ngs.LinearForm(residual(sol, v)).Assemble().vec.FV().NumPy()[fes.FreeDofs()]))**2
     state, state_linesearch, descent = ngs.GridFunction(fes), ngs.GridFunction(fes), ngs.GridFunction(fes)
@@ -113,7 +114,7 @@ def solve(fes : ngs.FESpace,                                                    
     if draw : scene = Draw(state)
     if verbosity >= 3 : print(f"done ({(time()-tStart) * 1000 :.2f} ms).")
     if verbosity >= 2 : print(f"Initial residual : {residual_list[-1] :.5e}")
-    if verbosity >= 3 : print(f"Start loop ... ")
+    if verbosity >= 3 : print(f"Start loop  ....... ")
 
     # II) Loop
 
@@ -123,7 +124,7 @@ def solve(fes : ngs.FESpace,                                                    
 
         # a) Assembly
         tStartAssembly = time()
-        if verbosity >= 3 : print(f" - Assembly ... ", end = "")
+        if verbosity >= 3 : print(f" - Assembly ....... ", end = "")
         res = ngs.LinearForm(residual(state, v)).Assemble()
         if residual_derivative is None : # symbolic differentiation (recommended)
             dres = ngs.BilinearForm(residual(du, v))
@@ -132,7 +133,7 @@ def solve(fes : ngs.FESpace,                                                    
             dres = ngs.BilinearForm(residual_derivative(state, du, v)).Assemble()
         if verbosity >= 3 : print(f"done ({(time()-tStartAssembly) * 1000 :.2f} ms).")
         tStartSolve = time()
-        if verbosity >= 3 : print(f" - Solve ... ", end = "")
+        if verbosity >= 3 : print(f" - Solve .......... ", end = "")
         Kinv  = dres.mat.Inverse(freedofs=fes.FreeDofs(), inverse = "sparsecholesky") 
         descent.vec.data = Kinv * res.vec
         if verbosity >= 3 : print(f"done ({(time()-tStartSolve) * 1000 :.2f} ms).")
@@ -142,19 +143,19 @@ def solve(fes : ngs.FESpace,                                                    
         # b) Line search
         if linesearch :
             tStartLineSearch = time()
-            if verbosity >= 2 : print(f" - Line search ... ")
+            if verbosity >= 2 : print(f" - Line search .... ")
             step = 1.
             counter_linesearch = 0
             state_linesearch.vec.data = state.vec - step * descent.vec
             res2_ls = res2(state_linesearch)
-            if verbosity >= 2 : print(f"   it {counter_linesearch} | |residual|² = {res2_ls :.5e}| step = {step : .2e}")
+            if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step : .2e}")
 
             while not res2_ls < (1-2*armijo_linesearch*step) * res2_state : # enter the line search even if the residual is nan
                 step *= step_factor_linesearch
                 state_linesearch.vec.data = state.vec - step * descent.vec
                 res2_ls = res2(state_linesearch)
                 counter_linesearch += 1
-                if verbosity >= 2 : print(f"   it {counter_linesearch} | |residual|² = {res2_ls :.5e}| step = {step : .2e}")
+                if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step : .2e}")
 
                 if counter_linesearch >= maxit_linesearch:
                     if verbosity >= 1 : print(f"❌ FAILURE: maximal number of line search iterations reached !!")
@@ -189,17 +190,22 @@ def solve(fes : ngs.FESpace,                                                    
         res2_state = res2(state)
         residual_list.append(ngs.sqrt(res2_state))
         
-        if verbosity >= 2 : print(f" - Crit.: |residual| = {residual_list[-1] : .5e}| decr = {decrement_list[-1] :.5e}")
+        if verbosity >= 2 : print(f" - Conv : ||residual|| = {residual_list[-1]:.5e} | decr = {decrement_list[-1] :.5e}")
         if draw : scene.Redraw(state)
         if verbosity >= 3 : print(f" - Newton iteration done ({(time()-tStartAssembly) * 1000 :.2f} ms).")
 
 
         if residual_list[-1] / residual_list[-2] < rtol_res:
-            if verbosity >= 1 : print(f"Linear problem detected!")
+            if verbosity >= 2 : print(f"Stop because linear problem detected.")
             linear = True
             break
         
-        if decrement_list[-1] < tol : 
+        if decrement_list[-1] < tol_dec : 
+            if verbosity >= 2 : print(f"Stop because decrement is lower than tol_dec.")
+            break
+
+        if residual_list[-1] < tol_res : 
+            if verbosity >= 2 : print(f"Stop because residual is lower than tol_res.")
             break
 
         if counter_newton >= maxit_newton: 
@@ -209,7 +215,9 @@ def solve(fes : ngs.FESpace,                                                    
     
     # III) Export results
 
-    if verbosity >=2 and not status : print(f" ✅ SUCCESS: Newton has converged in {counter_newton} iterations.")  
+    if verbosity >=2 and not status : 
+        print(f"-------------------------------------------------------")  
+        print(f" ✅ SUCCESS: Newton has converged in {counter_newton} iterations.")  
     if verbosity >=2 :  print(f" Total wall time: {(time() - tStart) :.2f} s.")
     results = {"solution" : state, 
                "status" : status, 
@@ -223,21 +231,19 @@ def solve(fes : ngs.FESpace,                                                    
     return results
 
 def solveAdjoint(state,
-                 lastInverse : ngs.Vector = None,
+                 last_inverse : ngs.Vector = None,
                  rhs : callable = None,
                  expression : callable = None,
                  ) -> dict:
     fes = state.space
     v = fes.TestFunction()
-    if lastInverse is not None:
+    if last_inverse is not None:
         adjoint = ngs.GridFunction(fes)
         lf = ngs.LinearForm(rhs(state, v)).Assemble()
-        if fes.is_complex: 
-            adjoint.vec.data = lastInverse.H * lf.vec
-        else :
-            adjoint.vec.data = lastInverse.T * lf.vec
+        if fes.is_complex: adjoint.vec.data = last_inverse.H * lf.vec
+        else : adjoint.vec.data = last_inverse.T * lf.vec
     elif expression is not None :
-        adjoint = solve(fes, expression)
+        adjoint = solve(fes, expression)["solution"]
     return adjoint
 
 
