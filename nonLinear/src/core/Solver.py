@@ -14,8 +14,8 @@ def solve(fes : ngs.FESpace,                                                    
           # Newton parameters
           maxit_newton : int = 50,             # maximum number of Newton outer iterations
           tol_dec : float = 1e-8,              # (absolute) tolerance on Newton decrement : sqrt( < residual(uOld), du > )
-          tol_res : float = 1e-8,             # (absolute) tolerance on residual 
-          rtol_res : float = 1e-8,            # relative tolerance on the residual between 2 iterations (to save 1 useless iteration in case of linear problem)
+          tol_res : float = 1e-8,              # (absolute) tolerance on residual 
+          rtol_res : float = 1e-10,            # relative tolerance on the residual between 2 iterations (to save 1 useless iteration in case of linear problem)
           # Line search parameters
           linesearch : bool = True,            # flag to enable line search (recommended)
           maxit_linesearch : int = 20,         # maximum iteration number within the line search
@@ -98,12 +98,14 @@ def solve(fes : ngs.FESpace,                                                    
     # I) Initialization
 
     tStart = time()
-    if verbosity >= 3 : print(f"-------------------- START NEWTON ---------------------")
+    if verbosity >= 2 : print(f"-------------------- START NEWTON ---------------------")
     if verbosity >= 3 : print(f"Initializing  ..... ", end = "")
     du, v = fes.TnT()
     res2 = lambda sol : (norm(ngs.LinearForm(residual(sol, v)).Assemble().vec.FV().NumPy()[fes.FreeDofs()]))**2
     state, state_linesearch, descent = ngs.GridFunction(fes), ngs.GridFunction(fes), ngs.GridFunction(fes)
-    state.Set(initial_guess)
+    if type(initial_guess) is ngs.GridFunction and initial_guess.space == fes:
+        state.vec.data = initial_guess.vec.data
+    else : state.Set(initial_guess)
     counter_newton = 0
     decrement_list = []
     res2_state = res2(state)
@@ -148,14 +150,14 @@ def solve(fes : ngs.FESpace,                                                    
             counter_linesearch = 0
             state_linesearch.vec.data = state.vec - step * descent.vec
             res2_ls = res2(state_linesearch)
-            if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step : .2e}")
+            if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step :.2e}")
 
             while not res2_ls < (1-2*armijo_linesearch*step) * res2_state : # enter the line search even if the residual is nan
                 step *= step_factor_linesearch
                 state_linesearch.vec.data = state.vec - step * descent.vec
                 res2_ls = res2(state_linesearch)
                 counter_linesearch += 1
-                if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step : .2e}")
+                if verbosity >= 2 : print(f"   it {counter_linesearch} : ||residual|| = {ngs.sqrt(res2_ls) :.5e} | step = {step :.2e}")
 
                 if counter_linesearch >= maxit_linesearch:
                     if verbosity >= 1 : print(f"❌ FAILURE: maximal number of line search iterations reached !!")
@@ -171,7 +173,7 @@ def solve(fes : ngs.FESpace,                                                    
 
             if not status:
                 state.vec.data = state_linesearch.vec
-            
+                            
         else :
             state.vec.data = state.vec - descent.vec
 
@@ -217,7 +219,9 @@ def solve(fes : ngs.FESpace,                                                    
 
     if verbosity >=2 and not status : 
         print(f"-------------------------------------------------------")  
-        print(f" ✅ SUCCESS: Newton has converged in {counter_newton} iterations.")  
+        print(f" ✅ SUCCESS: Newton has converged in {counter_newton} iteration", end = "")
+        if  counter_newton > 1 : print("s.")
+        else : print(".") 
     if verbosity >=2 :  print(f" Total wall time: {(time() - tStart) :.2f} s.")
     results = {"solution" : state, 
                "status" : status, 
